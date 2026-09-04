@@ -4,6 +4,11 @@ import random
 SIZE = 9
 EMPTY = 0
 MAX_GENERATION_ATTEMPTS = 100
+DIFFICULTY_CLUES = {
+    "Easy": 45,
+    "Medium": 35,
+    "Hard": 25,
+}
 
 def deep_copy(board):
     return copy.deepcopy(board)
@@ -121,3 +126,15 @@ def generate_puzzle(clues=35):
             return puzzle, solution
 
     raise RuntimeError("Unable to generate a puzzle with the requested clue count")
+
+
+def generate_puzzle_for_difficulty(difficulty):
+    """Generate a uniquely solvable puzzle for a named difficulty level."""
+    try:
+        clues = DIFFICULTY_CLUES[difficulty]
+    except KeyError as error:
+        raise ValueError(
+            f"Unsupported difficulty: {difficulty}. "
+            f"Choose one of {', '.join(DIFFICULTY_CLUES)}."
+        ) from error
+    return generate_puzzle(clues)

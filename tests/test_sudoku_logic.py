@@ -90,3 +90,17 @@ def test_generated_puzzles_have_one_solution_for_supported_difficulties(
 
     assert sudoku_logic.count_solutions(puzzle) == 1
     assert sudoku_logic.count_solutions(solution) == 1
+
+
+@pytest.mark.parametrize(
+    ("difficulty", "expected_clues"),
+    list(sudoku_logic.DIFFICULTY_CLUES.items()),
+)
+def test_each_difficulty_has_expected_clues_and_one_solution(
+    difficulty, expected_clues, deterministic_randomness
+):
+    puzzle, solution = sudoku_logic.generate_puzzle_for_difficulty(difficulty)
+
+    assert sum(cell != sudoku_logic.EMPTY for row in puzzle for cell in row) == expected_clues
+    assert sudoku_logic.count_solutions(puzzle) == 1
+    assert sudoku_logic.count_solutions(solution) == 1
