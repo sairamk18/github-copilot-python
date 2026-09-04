@@ -79,3 +79,14 @@ def test_generate_puzzle_has_requested_number_of_clues(deterministic_randomness)
         for row in range(sudoku_logic.SIZE)
         for column in range(sudoku_logic.SIZE)
     )
+    assert sudoku_logic.count_solutions(puzzle) == 1
+
+
+@pytest.mark.parametrize("clues", [35, 45, 55])
+def test_generated_puzzles_have_one_solution_for_supported_difficulties(
+    clues, deterministic_randomness
+):
+    puzzle, solution = sudoku_logic.generate_puzzle(clues)
+
+    assert sudoku_logic.count_solutions(puzzle) == 1
+    assert sudoku_logic.count_solutions(solution) == 1
