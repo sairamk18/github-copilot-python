@@ -28,7 +28,7 @@
         name: entry.name.trim(),
         timeSeconds: Number(entry.timeSeconds),
         difficulty: entry.difficulty,
-        hintsUsed: 0,
+        hintsUsed: Number(entry.hintsUsed) || 0,
       })
       .filter((item) => item.name && Number.isFinite(item.timeSeconds))
       .sort((left, right) => left.timeSeconds - right.timeSeconds)

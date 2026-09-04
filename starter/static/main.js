@@ -6,6 +6,8 @@ let timerId = null;
 let startedAt = null;
 let elapsedSeconds = 0;
 let gameCompleted = false;
+let hintsUsed = 0;
+const THEME_STORAGE_KEY = 'sudokuTheme';
 
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -45,6 +47,67 @@ function renderLeaderboard() {
   });
 }
 
+function getBoard() {
+  const inputs = document.getElementById('sudoku-board').getElementsByTagName('input');
+  return Array.from({ length: SIZE }, (_, row) =>
+    Array.from({ length: SIZE }, (_, col) => {
+      const value = inputs[row * SIZE + col].value;
+      return value ? parseInt(value, 10) : 0;
+    }),
+  );
+}
+
+function setMessage(text, type = '') {
+  const message = document.getElementById('message');
+  message.innerText = text;
+  message.className = type;
+}
+
+function updateHintsDisplay() {
+  document.getElementById('hints-used').innerText = hintsUsed;
+}
+
+function markInput(input, incorrect) {
+  input.classList.remove('incorrect', 'correct');
+  input.setAttribute('aria-invalid', String(incorrect));
+  if (incorrect) {
+    input.classList.add('incorrect');
+  } else if (input.value) {
+    input.classList.add('correct');
+  }
+}
+
+async function checkInput(input) {
+  if (!input.value) {
+    markInput(input, false);
+    return;
+  }
+  const data = await checkBoard(getBoard());
+  const key = `${input.dataset.row},${input.dataset.col}`;
+  markInput(input, new Set(data.incorrect.map(([row, col]) => `${row},${col}`)).has(key));
+}
+
+async function checkBoard(board) {
+  const res = await fetch('/check', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({board}),
+  });
+  return res.json();
+}
+
+function applyTheme(theme) {
+  document.body.dataset.theme = theme;
+  const isDark = theme === 'dark';
+  const toggle = document.getElementById('toggle-theme');
+  toggle.innerText = isDark ? 'Light mode' : 'Dark mode';
+  toggle.setAttribute('aria-pressed', String(isDark));
+}
+
+function initializeTheme() {
+  applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'light');
+}
+
 function createBoardElement() {
   const boardDiv = document.getElementById('sudoku-board');
   boardDiv.innerHTML = '';
@@ -58,6 +121,7 @@ function createBoardElement() {
       input.className = 'sudoku-cell';
       input.dataset.row = i;
       input.dataset.col = j;
+      input.setAttribute('aria-label', `Row ${i + 1}, column ${j + 1}`);
       input.addEventListener('input', (e) => {
         const val = e.target.value.replace(/[^1-9]/g, '');
         e.target.value = val;
@@ -96,55 +160,60 @@ async function newGame() {
   const data = await res.json();
   renderPuzzle(data.puzzle);
   selectedDifficulty = data.difficulty || difficulty;
+  hintsUsed = 0;
+  updateHintsDisplay();
   startTimer();
-  document.getElementById('message').innerText = '';
+  setMessage('');
 }
 
 async function checkSolution() {
-  const boardDiv = document.getElementById('sudoku-board');
-  const inputs = boardDiv.getElementsByTagName('input');
-  const board = [];
-  for (let i = 0; i < SIZE; i++) {
-    board[i] = [];
-    for (let j = 0; j < SIZE; j++) {
-      const idx = i * SIZE + j;
-      const val = inputs[idx].value;
-      board[i][j] = val ? parseInt(val, 10) : 0;
-    }
-  }
-  const res = await fetch('/check', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({board})
-  });
-  const data = await res.json();
-  const msg = document.getElementById('message');
+  const inputs = document.getElementById('sudoku-board').getElementsByTagName('input');
+  const data = await checkBoard(getBoard());
   if (data.error) {
-    msg.style.color = '#d32f2f';
-    msg.innerText = data.error;
+    setMessage(data.error, 'error');
     return;
   }
   const incorrect = new Set(data.incorrect.map(x => x[0]*SIZE + x[1]));
   for (let idx = 0; idx < inputs.length; idx++) {
     const inp = inputs[idx];
     if (inp.disabled) continue;
-    inp.className = 'sudoku-cell';
-    if (incorrect.has(idx)) {
-      inp.className = 'sudoku-cell incorrect';
-    }
+    markInput(inp, incorrect.has(idx));
   }
-  if (incorrect.size === 0) {
+  if (data.complete) {
     if (gameCompleted) return;
     stopTimer();
     gameCompleted = true;
-    msg.style.color = '#388e3c';
-    msg.innerText = 'Congratulations! You solved it!';
+    setMessage('Congratulations! You solved it!', 'success');
     document.getElementById('completed-time').innerText = formatTime(elapsedSeconds);
     document.getElementById('score-dialog').showModal();
   } else {
-    msg.style.color = '#d32f2f';
-    msg.innerText = 'Some cells are incorrect.';
+    setMessage(
+      incorrect.size ? 'Some cells are incorrect.' : 'Keep going: complete every cell.',
+      'error',
+    );
   }
+}
+
+async function useHint() {
+  if (gameCompleted) return;
+  const res = await fetch('/hint', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({board: getBoard()}),
+  });
+  const data = await res.json();
+  if (data.error) {
+    setMessage(data.error, 'error');
+    return;
+  }
+  const input = document.getElementById('sudoku-board').getElementsByTagName('input')
+    [data.row * SIZE + data.col];
+  input.value = data.value;
+  input.disabled = true;
+  input.classList.add('hinted');
+  hintsUsed += 1;
+  updateHintsDisplay();
+  setMessage('A correct value was revealed.', 'success');
 }
 
 function saveScore(event) {
@@ -155,6 +224,7 @@ function saveScore(event) {
     name,
     timeSeconds: elapsedSeconds,
     difficulty: selectedDifficulty,
+    hintsUsed,
   });
   document.getElementById('score-dialog').close();
   document.getElementById('score-form').reset();
@@ -165,6 +235,12 @@ function saveScore(event) {
 window.addEventListener('load', () => {
   document.getElementById('new-game').addEventListener('click', newGame);
   document.getElementById('check-solution').addEventListener('click', checkSolution);
+  document.getElementById('hint').addEventListener('click', useHint);
+  document.getElementById('toggle-theme').addEventListener('click', () => {
+    const theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    applyTheme(theme);
+  });
   document.getElementById('show-leaderboard').addEventListener('click', () => {
     const leaderboard = document.getElementById('leaderboard');
     leaderboard.hidden = !leaderboard.hidden;
@@ -172,6 +248,7 @@ window.addEventListener('load', () => {
   });
   document.getElementById('score-form').addEventListener('submit', saveScore);
   renderLeaderboard();
+  initializeTheme();
   // initialize
   newGame();
 });

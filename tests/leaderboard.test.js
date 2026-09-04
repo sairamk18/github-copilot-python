@@ -38,3 +38,15 @@ test('leaderboard data can be read back from storage', () => {
 
   assert.equal(JSON.parse(browserStorage.getItem(STORAGE_KEY))[0].name, 'Ada');
 });
+
+test('leaderboard preserves the number of hints used', () => {
+  const browserStorage = storage();
+  addEntry(browserStorage, {
+    name: 'Grace',
+    timeSeconds: 30,
+    difficulty: 'Easy',
+    hintsUsed: 3,
+  });
+
+  assert.equal(read(browserStorage)[0].hintsUsed, 3);
+});
