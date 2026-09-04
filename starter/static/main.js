@@ -77,14 +77,30 @@ function markInput(input, incorrect) {
   }
 }
 
+function updateConflictHighlighting() {
+  const conflicts = SudokuGameState.findConflicts(getBoard());
+  const inputs = document.getElementById('sudoku-board').getElementsByTagName('input');
+
+  for (const input of inputs) {
+    const key = `${input.dataset.row},${input.dataset.col}`;
+    const invalid = conflicts.has(key);
+    input.classList.toggle('invalid-entry', invalid);
+    input.setAttribute('aria-invalid', String(invalid));
+  }
+}
+
 async function checkInput(input) {
+  updateConflictHighlighting();
+
   if (!input.value) {
     markInput(input, false);
     return;
   }
+
   const data = await checkBoard(getBoard());
   const key = `${input.dataset.row},${input.dataset.col}`;
   markInput(input, new Set(data.incorrect.map(([row, col]) => `${row},${col}`)).has(key));
+  updateConflictHighlighting();
 }
 
 async function checkBoard(board) {
@@ -122,9 +138,14 @@ function createBoardElement() {
       input.dataset.row = i;
       input.dataset.col = j;
       input.setAttribute('aria-label', `Row ${i + 1}, column ${j + 1}`);
+      const boxRow = Math.floor(i / 3);
+      const boxCol = Math.floor(j / 3);
+      input.classList.add((boxRow + boxCol) % 2 === 0 ? 'box-shade' : 'box-plain');
+
       input.addEventListener('input', (e) => {
         const val = e.target.value.replace(/[^1-9]/g, '');
         e.target.value = val;
+        updateConflictHighlighting();
       });
       rowDiv.appendChild(input);
     }
