@@ -62,6 +62,40 @@ h1 {
     margin: 20px auto;
 }
 
+.game-info {
+    margin: 20px auto;
+}
+
+.game-info button {
+    margin-left: 20px;
+}
+
+.leaderboard {
+    margin: 20px auto;
+    max-width: 420px;
+    text-align: left;
+}
+
+.leaderboard h2 {
+    text-align: center;
+}
+
+.leaderboard li {
+    margin: 6px 0;
+}
+
+dialog {
+    border: 0;
+    border-radius: 6px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+dialog form {
+    display: grid;
+    gap: 12px;
+    min-width: 260px;
+}
+
 button {
     padding: 8px 18px;
     margin: 0 8px;
@@ -82,4 +116,12 @@ button:hover {
     margin-left: 20px;
     font-size: 16px;
     color: #d32f2f;
+}
+
+@media (max-width: 480px) {
+    .sudoku-cell {
+        width: 9vw;
+        height: 9vw;
+        font-size: 18px;
+    }
 }

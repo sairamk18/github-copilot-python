@@ -1,6 +1,49 @@
 // Client-side rendering and interaction for the Flask-backed Sudoku
 const SIZE = 9;
 let puzzle = [];
+let selectedDifficulty = 'Medium';
+let timerId = null;
+let startedAt = null;
+let elapsedSeconds = 0;
+let gameCompleted = false;
+
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const remainder = (seconds % 60).toString().padStart(2, '0');
+  return `${minutes}:${remainder}`;
+}
+
+function updateTimer() {
+  elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+  document.getElementById('timer').innerText = formatTime(elapsedSeconds);
+}
+
+function startTimer() {
+  stopTimer();
+  startedAt = Date.now();
+  elapsedSeconds = 0;
+  gameCompleted = false;
+  document.getElementById('timer').innerText = formatTime(elapsedSeconds);
+  timerId = setInterval(updateTimer, 1000);
+}
+
+function stopTimer() {
+  if (timerId !== null) {
+    clearInterval(timerId);
+    timerId = null;
+  }
+}
+
+function renderLeaderboard() {
+  const list = document.getElementById('leaderboard-list');
+  list.innerHTML = '';
+  SudokuLeaderboard.read(localStorage).forEach((entry) => {
+    const item = document.createElement('li');
+    item.innerText = `${entry.name} - ${formatTime(entry.timeSeconds)} `
+      + `(${entry.difficulty}, hints: ${entry.hintsUsed})`;
+    list.appendChild(item);
+  });
+}
 
 function createBoardElement() {
   const boardDiv = document.getElementById('sudoku-board');
@@ -52,6 +95,8 @@ async function newGame() {
   const res = await fetch(`/new?difficulty=${encodeURIComponent(difficulty)}`);
   const data = await res.json();
   renderPuzzle(data.puzzle);
+  selectedDifficulty = data.difficulty || difficulty;
+  startTimer();
   document.getElementById('message').innerText = '';
 }
 
@@ -89,18 +134,44 @@ async function checkSolution() {
     }
   }
   if (incorrect.size === 0) {
+    if (gameCompleted) return;
+    stopTimer();
+    gameCompleted = true;
     msg.style.color = '#388e3c';
     msg.innerText = 'Congratulations! You solved it!';
+    document.getElementById('completed-time').innerText = formatTime(elapsedSeconds);
+    document.getElementById('score-dialog').showModal();
   } else {
     msg.style.color = '#d32f2f';
     msg.innerText = 'Some cells are incorrect.';
   }
 }
 
+function saveScore(event) {
+  event.preventDefault();
+  const name = document.getElementById('player-name').value.trim();
+  if (!name) return;
+  SudokuLeaderboard.addEntry(localStorage, {
+    name,
+    timeSeconds: elapsedSeconds,
+    difficulty: selectedDifficulty,
+  });
+  document.getElementById('score-dialog').close();
+  document.getElementById('score-form').reset();
+  renderLeaderboard();
+}
+
 // Wire buttons
 window.addEventListener('load', () => {
   document.getElementById('new-game').addEventListener('click', newGame);
   document.getElementById('check-solution').addEventListener('click', checkSolution);
+  document.getElementById('show-leaderboard').addEventListener('click', () => {
+    const leaderboard = document.getElementById('leaderboard');
+    leaderboard.hidden = !leaderboard.hidden;
+    if (!leaderboard.hidden) renderLeaderboard();
+  });
+  document.getElementById('score-form').addEventListener('submit', saveScore);
+  renderLeaderboard();
   // initialize
   newGame();
 });

@@ -13,12 +13,30 @@
     <option value="Medium" selected>Medium</option>
     <option value="Hard">Hard</option>
   </select>
+  <div class="game-info">
+    <strong>Time: <span id="timer" aria-live="polite">00:00</span></strong>
+    <button id="show-leaderboard" type="button">Top 10</button>
+  </div>
   <div id="sudoku-board"></div>
   <div class="controls">
     <button id="new-game">New Game</button>
     <button id="check-solution">Check Solution</button>
     <span id="message"></span>
   </div>
+  <section id="leaderboard" class="leaderboard" hidden aria-labelledby="leaderboard-title">
+    <h2 id="leaderboard-title">Top 10</h2>
+    <ol id="leaderboard-list"></ol>
+  </section>
+  <dialog id="score-dialog">
+    <form method="dialog" id="score-form">
+      <h2>Puzzle complete!</h2>
+      <p>Your time: <strong id="completed-time"></strong></p>
+      <label for="player-name">Name</label>
+      <input id="player-name" name="player-name" required maxlength="30" autocomplete="name">
+      <button value="save" type="submit">Save score</button>
+    </form>
+  </dialog>
+  <script src="/static/leaderboard.js"></script>
   <script src="/static/main.js"></script>
 </body>
 </html>
